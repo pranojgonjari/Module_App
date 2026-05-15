@@ -8,8 +8,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.util.Arrays;
 
@@ -23,6 +28,8 @@ public class AuthController {
     @Autowired
     private AuthenticationManager authenticationManager;
 
+    private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
+
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody Users user) {
         if (userService.findByUsername(user.getUsername()) != null) {
@@ -34,12 +41,17 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Users user) {
+    public ResponseEntity<?> login(@RequestBody Users user, HttpServletRequest request, HttpServletResponse response) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword())
             );
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            
+            SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authentication);
+            SecurityContextHolder.setContext(context);
+            securityContextRepository.saveContext(context, request, response);
+            
             return new ResponseEntity<>("Login successful", HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>("Invalid username or password", HttpStatus.UNAUTHORIZED);

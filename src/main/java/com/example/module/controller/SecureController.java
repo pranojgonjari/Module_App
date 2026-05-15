@@ -1,55 +1,36 @@
 package com.example.module.controller;
 
+import com.example.module.entity.ModuleEntry;
+import com.example.module.service.ModuleEntryService;
+import org.bson.types.ObjectId;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
-/**
- * SecureController - Endpoints that require authentication.
- *
- * These endpoints are configured in SecurityConfig to require authentication.
- * Basic Authentication credentials must be provided to access these endpoints.
- *
- * How to use:
- * - Send HTTP Basic Auth header with each request
- * - Header format: Authorization: Basic base64(username:password)
- * - Example: Authorization: Basic YWRtaW46YWRtaW4xMjM=
- */
 @RestController
 @RequestMapping("/api")
 public class SecureController {
 
-    /**
-     * Secure endpoint - Requires authentication.
-     * Only authenticated users can access this.
-     *
-     * How Spring Security passes the authenticated user?
-     * - Authentication object is automatically injected by Spring Security
-     * - Contains authenticated user information
-     * - Available only for authenticated requests
-     *
-     * @param authentication Object containing authenticated user info
-     * @return Personalized greeting with user details
-     */
+    @Autowired
+    private ModuleEntryService moduleEntryService;
+
+    // --- SECURED USER ENDPOINTS ---
+
     @GetMapping("/hello")
     public String secureHello(Authentication authentication) {
-        return "Hello " + authentication.getName() + "! This is a secured endpoint.";
+        return "Hello " + authentication.getName() + "! This is a secured user endpoint.";
     }
 
-    /**
-     * Get current user information.
-     * Returns detailed information about the authenticated user.
-     *
-     * @param authentication Object containing authenticated user info
-     * @return User information in JSON format
-     */
     @GetMapping("/user-info")
     public UserInfoResponse getUserInfo(Authentication authentication) {
-        // Get user's roles/authorities
         String roles = authentication.getAuthorities()
                 .stream()
                 .map(GrantedAuthority::getAuthority)
@@ -62,26 +43,68 @@ public class SecureController {
         );
     }
 
-    /**
-     * Admin-only endpoint - Only users with ROLE_ADMIN can access.
-     * Even if authenticated, users without ROLE_ADMIN cannot access.
-     *
-     * Note: To implement role-based access, we would use @PreAuthorize annotation:
-     * @PreAuthorize("hasRole('ADMIN')")
-     * But for this example, we're keeping it simple.
-     *
-     * @param authentication Object containing authenticated user info
-     * @return Admin message
-     */
-    @GetMapping("/admin")
-    public String adminEndpoint(Authentication authentication) {
-        return "Welcome Admin " + authentication.getName() + "!";
+    @GetMapping("/entries")
+    public ResponseEntity<?> getAllEntries(Authentication authentication) {
+        return new ResponseEntity<>(moduleEntryService.getAll(), HttpStatus.OK);
     }
 
-    /**
-     * DTO (Data Transfer Object) for user information response.
-     * Used to send user info in JSON format.
-     */
+    @PostMapping("/create")
+    public ResponseEntity<?> create(@RequestBody ModuleEntry entry, Authentication authentication) {
+        ModuleEntry saved = moduleEntryService.saveEntry(entry, authentication.getName());
+        return new ResponseEntity<>(saved, HttpStatus.CREATED);
+    }
+
+    @PutMapping("/update/{id}")
+    public ResponseEntity<?> update(@PathVariable ObjectId id, @RequestBody ModuleEntry entry, Authentication authentication) {
+        Optional<ModuleEntry> old = moduleEntryService.findById(id);
+        if (old.isPresent()) {
+            entry.setId(id);
+            ModuleEntry updated = moduleEntryService.saveEntry(entry, authentication.getName());
+            return new ResponseEntity<>(updated, HttpStatus.OK);
+        }
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    }
+
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<?> delete(@PathVariable ObjectId id) {
+        moduleEntryService.deleteByID(id);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    // --- ADMIN ONLY ENDPOINTS ---
+
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String adminEndpoint(Authentication authentication) {
+        return "Welcome Admin " + authentication.getName() + "! This is an admin-only endpoint.";
+    }
+
+    @PostMapping("/admin/create")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> adminCreate(@RequestBody ModuleEntry entry, Authentication authentication) {
+        ModuleEntry saved = moduleEntryService.saveEntry(entry, authentication.getName());
+        return new ResponseEntity<>(saved, HttpStatus.CREATED);
+    }
+
+    @PutMapping("/admin/update/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> adminUpdate(@PathVariable ObjectId id, @RequestBody ModuleEntry entry, Authentication authentication) {
+        Optional<ModuleEntry> old = moduleEntryService.findById(id);
+        if (old.isPresent()) {
+            entry.setId(id);
+            ModuleEntry updated = moduleEntryService.saveEntry(entry, authentication.getName());
+            return new ResponseEntity<>(updated, HttpStatus.OK);
+        }
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    }
+
+    @DeleteMapping("/admin/delete/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> adminDelete(@PathVariable ObjectId id) {
+        moduleEntryService.deleteByID(id);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
     public static class UserInfoResponse {
         public String username;
         public String roles;
@@ -93,7 +116,6 @@ public class SecureController {
             this.authenticated = authenticated;
         }
 
-        // Getters for JSON serialization
         public String getUsername() { return username; }
         public String getRoles() { return roles; }
         public boolean isAuthenticated() { return authenticated; }

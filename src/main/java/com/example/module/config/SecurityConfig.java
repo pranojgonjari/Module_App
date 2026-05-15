@@ -6,7 +6,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -31,6 +33,7 @@ import org.springframework.security.web.SecurityFilterChain;
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Autowired
@@ -78,8 +81,7 @@ public class SecurityConfig {
      */
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(customUserDetailsService);
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(customUserDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }
@@ -130,46 +132,28 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // CSRF Protection Configuration
-            // .csrf().disable() - We disable CSRF because:
-            // - API is stateless (no session cookies to protect)
-            // - Basic Auth doesn't use session tokens
-            // - Client doesn't store cookies
-            // IMPORTANT: Only disable CSRF for API-only applications!
-            // Keep CSRF enabled for applications with HTML forms
             .csrf(csrf -> csrf.disable())
-
-            // Authorization Configuration
             .authorizeHttpRequests(authz -> authz
-                    // Public endpoints (no authentication required)
-                    .requestMatchers("/public/**").permitAll()
-
-                    // All other endpoints require authentication
+                    .requestMatchers("/public/**", "/auth/**").permitAll()
+                    .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                    .requestMatchers("/api/**").hasAnyRole("USER", "ADMIN")
                     .anyRequest().authenticated()
             )
-
-            // Authentication Configuration - Enable HTTP Basic Auth
-            // Basic Authentication works like this:
-            // 1. Client sends header: Authorization: Basic base64(username:password)
-            // 2. Server decodes the header
-            // 3. Extracts username and password
-            // 4. Calls AuthenticationManager with credentials
-            // 5. AuthenticationManager loads user via UserDetailsService
-            // 6. Compares passwords using BCryptPasswordEncoder
-            // 7. If match, request is authenticated
-            .httpBasic(basic -> basic
-                    .realmName("Module API")
+            .httpBasic(Customizer.withDefaults())
+            .exceptionHandling(exceptions -> exceptions
+                    .authenticationEntryPoint((request, response, authException) -> {
+                        response.sendError(401, "Unauthorized");
+                    })
             )
-
-            // Session Management Configuration
-            // SessionCreationPolicy.STATELESS means:
-            // - Spring Security will NOT create sessions
-            // - No JSESSIONID cookie
-            // - Each request is independent
-            // - Authentication info comes from HTTP Basic header every time
-            // This is ideal for APIs and microservices
+            .logout(logout -> logout
+                    .logoutUrl("/auth/logout")
+                    .logoutSuccessUrl("/public/hello")
+                    .invalidateHttpSession(true)
+                    .deleteCookies("JSESSIONID")
+                    .permitAll()
+            )
             .sessionManagement(session -> session
-                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                    .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             );
 
         return http.build();
