@@ -8,6 +8,8 @@ spring:
       auto-index-creation: true
 
 server:
+  port: 8080
+
   servlet:
     session:
       timeout: 30m
@@ -24,7 +26,7 @@ logging:
     root: INFO
     org.springframework.security: DEBUG
     org.springframework.web: INFO
-    org.springframework.data.mongodb: INFO
+    org.springframework.data.mongodb: DEBUG
     com.example.module: DEBUG
 
   pattern:
