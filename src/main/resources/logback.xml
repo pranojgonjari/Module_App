@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Define where logs will be stored -->
+    <property name="LOG_FILE_PATH" value="logs"/>
+    <property name="LOG_FILE_NAME" value="module"/>
+
+    <!--
+    =====================================================
+    CONSOLE APPENDER - Prints logs to console
+    =====================================================
+
+    What is a Console Appender?
+    - Outputs log messages to the console (System.out)
+    - Useful for development and quick debugging
+    - Shows real-time logs while application is running
+    -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- Encoder converts log events into formatted text -->
+        <encoder>
+            <!--
+            Pattern Format Explanation:
+            %d{yyyy-MM-dd HH:mm:ss.SSS} = Timestamp (date and time with milliseconds)
+            %5p                        = Log level (5 characters wide: INFO, WARN, ERROR, etc.)
+            %logger{36}                = Class name that generated the log (max 36 characters)
+            %msg                       = The actual log message
+            %n                         = New line
+
+            Example output:
+            2026-05-17 10:30:45.123  INFO com.example.module.controller.AuthController User registered successfully
+            -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!--
+    =====================================================
+    ROLLING FILE APPENDER - Writes logs to file with rotation
+    =====================================================
+
+    What is a Rolling File Appender?
+    - Writes log messages to a file
+    - Automatically creates new files when current file gets too large
+    - Prevents logs from consuming unlimited disk space
+    - Keeps history of old log files
+
+    When does it "roll"?
+    - When file size exceeds the specified limit (e.g., 10MB)
+    - At specific time intervals (e.g., daily)
+    -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--
+        File: Where to write the current log file
+        %LOG_FILE_PATH = "logs" (directory)
+        %LOG_FILE_NAME = "module" (filename)
+        Result: logs/module.log
+        -->
+        <file>${LOG_FILE_PATH}/${LOG_FILE_NAME}.log</file>
+
+        <!-- Encoder for file logging (same as console) -->
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %logger{36} - %msg%n</pattern>
+        </encoder>
+
+        <!--
+        RollingPolicy: Defines when and how to create new log files
+
+        TimeBasedRollingPolicy = Roll based on time + size
+        -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!--
+            fileNamePattern: How to name rolled/archived log files
+
+            Explanation:
+            ${LOG_FILE_PATH}/%d{yyyy/MM/dd}/${LOG_FILE_NAME}-%i.log.zip
+
+            %d{yyyy/MM/dd}  = Date pattern (organizes by year/month/day folder)
+            %i              = Rolling counter (0, 1, 2, 3... for multiple rollover on same day)
+            .log.zip        = Automatically compresses old logs
+
+            Example of generated files:
+            logs/2026/05/17/module-0.log.zip  (first rollover on May 17)
+            logs/2026/05/17/module-1.log.zip  (second rollover on May 17)
+            logs/2026/05/18/module-0.log.zip  (first rollover on May 18)
+            -->
+            <fileNamePattern>${LOG_FILE_PATH}/%d{yyyy/MM/dd}/${LOG_FILE_NAME}-%i.log.zip</fileNamePattern>
+
+            <!--
+            maxFileSize: Maximum size of a single log file before rolling
+
+            Explanation:
+            10MB = When the current log file reaches 10 megabytes,
+                   create a new file and compress the old one.
+
+            Why 10MB?
+            - Small enough to prevent huge files
+            - Large enough to avoid creating files too frequently
+            - Adjust based on your logging volume
+
+            Common values:
+            - 1MB, 5MB, 10MB, 50MB, 100MB
+            -->
+            <maxFileSize>10MB</maxFileSize>
+
+            <!--
+            maxHistory: How many days of log files to keep
+
+            Explanation:
+            30 = Keep log files for the last 30 days only.
+                 Older files are automatically deleted.
+
+            Why 30 days?
+            - Balances disk usage with historical data
+            - Adjust based on your retention requirements
+
+            Common values:
+            - 7 days (one week)
+            - 14 days (two weeks)
+            - 30 days (one month)
+            - 90 days (three months)
+            -->
+            <maxHistory>30</maxHistory>
+
+            <!--
+            totalSizeCap: Maximum total size of all log files combined
+
+            Explanation:
+            500MB = Keep accumulated log files up to 500 megabytes.
+                    When exceeded, oldest files are deleted.
+
+            This prevents logs from consuming too much disk space.
+            -->
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!--
+    =====================================================
+    LOGGER CONFIGURATION
+    =====================================================
+
+    What is a Logger?
+    - Responsible for creating log messages
+    - Can have different log levels
+    - Can output to multiple appenders (console, file, etc.)
+    -->
+
+    <!--
+    Root Logger Configuration
+
+    level="INFO" = Only log INFO, WARN, ERROR, FATAL messages
+    (DEBUG and TRACE messages are ignored)
+
+    Log Levels (in order of severity):
+    1. TRACE   - Most detailed, rarely used
+    2. DEBUG   - Detailed information for debugging
+    3. INFO    - General informational messages (default)
+    4. WARN    - Warning messages (something unexpected)
+    5. ERROR   - Error messages (something failed)
+    6. FATAL   - Critical errors (system is failing)
+
+    Example:
+    level="DEBUG" = Show TRACE, DEBUG, INFO, WARN, ERROR, FATAL
+    level="WARN"  = Show WARN, ERROR, FATAL only
+    -->
+    <root level="INFO">
+        <!-- Output to console -->
+        <appender-ref ref="CONSOLE"/>
+        <!-- Output to file with rolling -->
+        <appender-ref ref="FILE"/>
+    </root>
+
+    <!--
+    Logger for specific package: com.example.module
+
+    Application loggers are more important, so set to DEBUG level
+    This means we'll see more detailed logs for our application code
+    -->
+    <logger name="com.example.module" level="DEBUG">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </logger>
+
+    <!--
+    Logger for Spring Framework (less verbose)
+
+    level="WARN" = Only show warnings and errors from Spring
+    This prevents Spring's verbose logging from cluttering your logs
+    -->
+    <logger name="org.springframework" level="WARN"/>
+
+    <!-- Logger for MongoDB (less verbose) -->
+    <logger name="org.mongodb" level="WARN"/>
+
+</configuration>
+
