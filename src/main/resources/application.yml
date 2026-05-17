@@ -31,3 +31,14 @@ logging:
 
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# External API Configuration
+# Weather API from api-ninjas.com
+weather:
+  api:
+    # Base URL for weather API endpoint
+    base-url: https://api.api-ninjas.com/v1/weather
+    # API Key for authentication (keep this secure in production!)
+    # Should be stored in environment variables: export WEATHER_API_KEY=your_key
+    # Then use: key: ${WEATHER_API_KEY}
+    key: GfuKjCTXvstEGHRZzBsSKrcLBpTWo4M0dS1BFjG6
