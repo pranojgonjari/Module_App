@@ -42,3 +42,19 @@ weather:
     # Should be stored in environment variables: export WEATHER_API_KEY=your_key
     # Then use: key: ${WEATHER_API_KEY}
     key: GfuKjCTXvstEGHRZzBsSKrcLBpTWo4M0dS1BFjG6
+
+# Email Configuration
+mail:
+  smtp:
+    host: smtp.gmail.com
+    port: 587
+    username: jethajibabitaji8436@gmail.com
+    password: nwoj ilyf czeb atuo
+    auth: true
+    starttls:
+      enable: true
+      required: true
+    connectiontimeout: 5000
+    timeout: 5000
+    writetimeout: 5000
+
