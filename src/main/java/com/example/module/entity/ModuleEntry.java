@@ -1,5 +1,6 @@
 package com.example.module.entity;
 
+import com.example.module.enums.Sentiment;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,6 +24,7 @@ public class ModuleEntry {
     private String title;
     private String content;
     private LocalDateTime date;
+    private Sentiment sentiment;
 
 
 
