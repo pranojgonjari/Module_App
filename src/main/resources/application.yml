@@ -1,28 +1,57 @@
 spring:
   application:
     name: Module
-
   data:
     mongodb:
       uri: mongodb://localhost:27017/moduledb?replicaSet=rs0
       auto-index-creation: true
-
     redis:
       host: secure-hyperradiant-umbrella-55174.db.redis.io
       port: 17692
       username: default
       password: xBPYlTCp6ZOTYrGdSaaZ3FwoGXm0igFm
       connect-timeout: 60000
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+    consumer:
+      group-id: module-group
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    listener:
+      missing-topics-fatal: false
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: jethajibabitaji8436@gmail.com
+    password: nwoj ilyf czeb atuo
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
 server:
   port: 8080
-
   servlet:
     session:
       timeout: 30m
       cookie:
         http-only: true
         secure: false
-
   error:
     include-message: always
     include-binding-errors: always
@@ -33,8 +62,8 @@ logging:
     org.springframework.security: DEBUG
     org.springframework.web: INFO
     org.springframework.data.mongodb: DEBUG
+    org.springframework.kafka: DEBUG
     com.example.module: DEBUG
-
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
@@ -43,19 +72,79 @@ weather:
     base-url: https://api.api-ninjas.com/v1/weather
     key: GfuKjCTXvstEGHRZzBsSKrcLBpTWo4M0dS1BFjG6
 
-mail:
-  smtp:
-    host: smtp.gmail.com
-    port: 587
-    username: jethajibabitaji8436@gmail.com
-    password: nwoj ilyf czeb atuo
-    auth: true
-    starttls:
-      enable: true
-      required: true
-    connectiontimeout: 5000
-    timeout: 5000
-    writetimeout: 5000
+app:
+  kafka:
+    topic-name: product-events-topic
+
+
+
+
+
+
+
+
+
+
+
+
+#spring:
+#  application:
+#    name: Module
+#
+#  data:
+#    mongodb:
+#      uri: mongodb://localhost:27017/moduledb?replicaSet=rs0
+#      auto-index-creation: true
+#
+#    redis:
+#      host: secure-hyperradiant-umbrella-55174.db.redis.io
+#      port: 17692
+#      username: default
+#      password: xBPYlTCp6ZOTYrGdSaaZ3FwoGXm0igFm
+#      connect-timeout: 60000
+#server:
+#  port: 8080
+#
+#  servlet:
+#    session:
+#      timeout: 30m
+#      cookie:
+#        http-only: true
+#        secure: false
+#
+#  error:
+#    include-message: always
+#    include-binding-errors: always
+#
+#logging:
+#  level:
+#    root: INFO
+#    org.springframework.security: DEBUG
+#    org.springframework.web: INFO
+#    org.springframework.data.mongodb: DEBUG
+#    com.example.module: DEBUG
+#
+#  pattern:
+#    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+#
+#weather:
+#  api:
+#    base-url: https://api.api-ninjas.com/v1/weather
+#    key: GfuKjCTXvstEGHRZzBsSKrcLBpTWo4M0dS1BFjG6
+#
+#mail:
+#  smtp:
+#    host: smtp.gmail.com
+#    port: 587
+#    username: jethajibabitaji8436@gmail.com
+#    password: nwoj ilyf czeb atuo
+#    auth: true
+#    starttls:
+#      enable: true
+#      required: true
+#    connectiontimeout: 5000
+#    timeout: 5000
+#    writetimeout: 5000
 
 
 
