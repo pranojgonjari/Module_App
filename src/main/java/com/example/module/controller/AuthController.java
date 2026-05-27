@@ -1,88 +1,73 @@
+// controller/AuthController.java
 package com.example.module.controller;
 
-import com.example.module.entity.Users;
-import com.example.module.service.UserService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import com.example.module.dto.JwtRequest;
+import com.example.module.dto.JwtResponse;
+import com.example.module.dto.SignupRequest;
+import com.example.module.entity.Employee;
+import com.example.module.service.EmployeeService;
+import com.example.module.service.EmployeeServiceImpl; // ✅ import impl if needed
+import com.example.module.security.CustomUserDetailsService;
+import com.example.module.util.JwtUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
-import java.util.Arrays;
-
-/**
- * AuthController - Handles user authentication (login and signup)
- *
- * @Slf4j: Lombok annotation that automatically generates a logger
- * This allows us to use 'log' variable without manual initialization
- *
- * Behind the scenes, Lombok creates:
- * private static final Logger log = LoggerFactory.getLogger(AuthController.class);
- */
-@Slf4j
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
 
-    @Autowired
-    private UserService userService;
+    private final EmployeeService employeeService;
+    private final AuthenticationManager authenticationManager;
+    private final CustomUserDetailsService customUserDetailsService;
+    private final JwtUtil jwtUtil;
 
-    @Autowired
-    private AuthenticationManager authenticationManager;
-
-    private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
+    // ✅ Spring will inject EmployeeServiceImpl automatically
+    public AuthController(EmployeeService employeeService,
+                          AuthenticationManager authenticationManager,
+                          CustomUserDetailsService customUserDetailsService,
+                          JwtUtil jwtUtil) {
+        this.employeeService = employeeService;
+        this.authenticationManager = authenticationManager;
+        this.customUserDetailsService = customUserDetailsService;
+        this.jwtUtil = jwtUtil;
+    }
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody Users user) {
-        log.info("Signup request received for username: {}", user.getUsername());
-
-        if (userService.findByUsername(user.getUsername()) != null) {
-            log.warn("Warning message: Username '{}' already exists in the system", user.getUsername());
-            return new ResponseEntity<>("Username already exists", HttpStatus.BAD_REQUEST);
-        }
-
+    public ResponseEntity<?> signup(@RequestBody SignupRequest request) {
         try {
-            user.setRoles(Arrays.asList("ROLE_USER"));
-            userService.saveNewUser(user);
-            log.info("User '{}' registered successfully with role ROLE_USER", user.getUsername());
-            return new ResponseEntity<>("User registered successfully", HttpStatus.CREATED);
-        } catch (Exception e) {
-            log.error("Error occurred while registering user '{}': {}", user.getUsername(), e.getMessage(), e);
-            return new ResponseEntity<>("An error occurred during registration", HttpStatus.INTERNAL_SERVER_ERROR);
+            Employee employee = employeeService.registerEmployee(request);
+            return ResponseEntity.ok("Employee registered: " + employee.getEmail());
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Users user, HttpServletRequest request, HttpServletResponse response) {
-        log.info("Login request received for username: {}", user.getUsername());
-
+    public ResponseEntity<?> login(@RequestBody JwtRequest request) {
         try {
-            log.debug("Attempting to authenticate user: {}", user.getUsername());
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword())
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(), request.getPassword())
             );
-            
-            log.debug("Authentication successful for user: {}", user.getUsername());
-            SecurityContext context = SecurityContextHolder.createEmptyContext();
-            context.setAuthentication(authentication);
-            SecurityContextHolder.setContext(context);
-            securityContextRepository.saveContext(context, request, response);
-            
-            log.info("User '{}' logged in successfully", user.getUsername());
-            return new ResponseEntity<>("Login successful", HttpStatus.OK);
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(401).body("Invalid email or password");
         } catch (Exception e) {
-            log.warn("Warning message: Login failed for username: {} - Reason: {}", user.getUsername(), e.getMessage());
-            log.error("Error occurred during login attempt for user '{}': {}", user.getUsername(), e.getMessage(), e);
-            return new ResponseEntity<>("Invalid username or password", HttpStatus.UNAUTHORIZED);
+            return ResponseEntity.status(500)
+                    .body("Authentication error: " + e.getMessage());
         }
+
+        UserDetails userDetails = customUserDetailsService
+                .loadUserByUsername(request.getEmail());
+        String token = jwtUtil.generateToken(userDetails);
+
+        return ResponseEntity.ok(new JwtResponse(
+                token,
+                request.getEmail(),
+                userDetails.getAuthorities().iterator().next().getAuthority()
+        ));
     }
 }

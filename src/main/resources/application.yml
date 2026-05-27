@@ -76,6 +76,11 @@ app:
   kafka:
     topic-name: product-events-topic
 
+jwt:
+  secret: abcdefghijklmnopqrstuvwxyz123456
+  expiration: 86400000
+
+
 
 
 
